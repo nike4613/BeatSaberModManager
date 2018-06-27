@@ -1,34 +1,41 @@
-﻿using BeatSaberModManager.Manager;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 
 namespace BeatSaberModManager.Utilities.Logging
 {
     public abstract class LoggerBase
     {
-        public abstract void Log(Logger.Level level, string message, params object[] args);
-        public void Log(Logger.Level level, Exception exeption) => Log(level, exeption.ToString());
-        public void SuperVerbose(string message, params object[] args) => Log(Logger.Level.SuperVerbose, message, args);
-        public void SuperVerbose(Exception e) => Log(Logger.Level.SuperVerbose, e);
-        public void Debug(string message, params object[] args) => Log(Logger.Level.Debug, message, args);
-        public void Debug(Exception e) => Log(Logger.Level.Debug, e);
-        public void Info(string message, params object[] args) => Log(Logger.Level.Info, message, args);
-        public void Info(Exception e) => Log(Logger.Level.Info, e);
-        public void Warn(string message, params object[] args) => Log(Logger.Level.Warning, message, args);
-        public void Warn(Exception e) => Log(Logger.Level.Warning, e);
-        public void Error(string message, params object[] args) => Log(Logger.Level.Error, message, args);
-        public void Error(Exception e) => Log(Logger.Level.Error, e);
-        public void Critical(string message, params object[] args) => Log(Logger.Level.Critical, message, args);
-        public void Critical(Exception e) => Log(Logger.Level.Critical, e);
+        public enum Level : byte
+        {
+            None = 0,
+            Debug = 1,
+            Info = 2,
+            Warning = 4,
+            Error = 8,
+            Critical = 16,
+            SuperVerbose = 32
+        }
+
+        public abstract void Log(Level level, string message, params object[] args);
+        public void Log(Level level, Exception exeption) => Log(level, exeption.ToString());
+        public void SuperVerbose(string message, params object[] args) => Log(Level.SuperVerbose, message, args);
+        public void SuperVerbose(Exception e) => Log(Level.SuperVerbose, e);
+        public void Debug(string message, params object[] args) => Log(Level.Debug, message, args);
+        public void Debug(Exception e) => Log(Level.Debug, e);
+        public void Info(string message, params object[] args) => Log(Level.Info, message, args);
+        public void Info(Exception e) => Log(Level.Info, e);
+        public void Warn(string message, params object[] args) => Log(Level.Warning, message, args);
+        public void Warn(Exception e) => Log(Level.Warning, e);
+        public void Error(string message, params object[] args) => Log(Level.Error, message, args);
+        public void Error(Exception e) => Log(Level.Error, e);
+        public void Critical(string message, params object[] args) => Log(Level.Critical, message, args);
+        public void Critical(Exception e) => Log(Level.Critical, e);
     }
 
     public class Logger : LoggerBase
-{
+    {
         private static Logger _log = null;// = CreateLogger(Assembly.GetCallingAssembly().GetName().Name);
         internal static Logger log
         {
@@ -43,6 +50,25 @@ namespace BeatSaberModManager.Utilities.Logging
         internal static Logger CreateLogger(string loggerName)
         {
             return new Logger(loggerName);
+        }
+        
+        [Flags]
+        public enum LogLevel : byte
+        {
+            None = Level.None,
+            SuperVerboseOnly = Level.SuperVerbose,
+            DebugOnly = Level.Debug,
+            InfoOnly = Level.Info,
+            WarningOnly = Level.Warning,
+            ErrorOnly = Level.Error,
+            CriticalOnly = Level.Critical,
+
+            ErrorUp = ErrorOnly | CriticalOnly,
+            WarningUp = WarningOnly | ErrorUp,
+            InfoUp = InfoOnly | WarningUp,
+            All = DebugOnly | InfoUp,
+
+            ReallyNotReccomendedAll = SuperVerboseOnly | All,
         }
 
         private static List<ILogPrinter> defaultPrinters = new List<ILogPrinter>()
@@ -89,36 +115,6 @@ namespace BeatSaberModManager.Utilities.Logging
         {
             logName = name;
         }
-        
-        public enum Level : byte
-        {
-            None = 0,
-            Debug = 1,
-            Info = 2,
-            Warning = 4,
-            Error = 8,
-            Critical = 16,
-            SuperVerbose = 32
-        }
-
-        [Flags]
-        public enum LogLevel : byte
-        {
-            None = Level.None,
-            SuperVerboseOnly = Level.SuperVerbose,
-            DebugOnly = Level.Debug,
-            InfoOnly = Level.Info,
-            WarningOnly = Level.Warning,
-            ErrorOnly = Level.Error,
-            CriticalOnly = Level.Critical,
-
-            ErrorUp = ErrorOnly | CriticalOnly,
-            WarningUp = WarningOnly | ErrorUp,
-            InfoUp = InfoOnly | WarningUp,
-            All = DebugOnly | InfoUp,
-
-            ReallyNotReccomendedAll = SuperVerboseOnly | All,
-        }
 
         public override void Log(Level level, string message, params object[] args)
         {
@@ -132,7 +128,7 @@ namespace BeatSaberModManager.Utilities.Logging
     public interface ILogPrinter
     {
         Logger.LogLevel Filter { get; set; }
-        void Print(Logger.Level level, string logName, string message);
+        void Print(LoggerBase.Level level, string logName, string message);
     }
 
     public class ColoredConsolePrinter : ILogPrinter
@@ -143,7 +139,7 @@ namespace BeatSaberModManager.Utilities.Logging
         ConsoleColor color = Console.ForegroundColor;
         public ConsoleColor Color { get => color; set => color = value; }
 
-        public void Print(Logger.Level level, string logName, string message)
+        public void Print(LoggerBase.Level level, string logName, string message)
         {
             Console.ForegroundColor = color;
             foreach (var line in message.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
@@ -169,7 +165,7 @@ namespace BeatSaberModManager.Utilities.Logging
 
         public Logger.LogLevel Filter { get; set; }
 
-        public void Print(Logger.Level level, string logName, string message)
+        public void Print(LoggerBase.Level level, string logName, string message)
         {
             var timestring = DateTime.Now.ToString();
             foreach (var line in message.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))

@@ -106,9 +106,40 @@ namespace BeatSaberModManager.Manager
 
         private static List<IBeatSaberPlugin> plugins = new List<IBeatSaberPlugin>();
 
+        public static void OnApplicationStart()
+        {
+            foreach (var plugin in plugins)
+                plugin.OnApplicationStart();
+        }
+        public static void OnApplicationQuit()
+        {
+            foreach (var plugin in plugins)
+                plugin.OnApplicationQuit();
+        }
+        public static void OnFixedUpdate()
+        {
+            foreach (var plugin in plugins)
+                plugin.OnFixedUpdate();
+        }
+        public static void OnUpdate()
+        {
+            foreach (var plugin in plugins)
+                plugin.OnUpdate();
+        }
+        public static void OnLevelWasInitialized(int index)
+        {
+            foreach (var plugin in plugins)
+                plugin.OnLevelWasInitialized(index);
+        }
+        public static void OnLevelWasLoaded(int index)
+        {
+            foreach (var plugin in plugins)
+                plugin.OnLevelWasLoaded(index);
+        }
+
         private static bool LoadAssembly(Assembly asm, Type[] types)
         {
-            //Console.WriteLine(assm.FullName);
+            Logger.log.SuperVerbose($"Checking module {asm.GetName().FullName}");
             object[] attrs = new object[] { };
             try
             {
@@ -118,11 +149,15 @@ namespace BeatSaberModManager.Manager
             {
                 Logger.log.Warn($"Woah there buddy! Something is wrong with {asm.GetName().Name}! I can't read it's attributes!");
 
+                Logger.log.SuperVerbose("Returning false");
                 return false;
             }
 
             if (attrs.Length == 0)
+            {
+                Logger.log.SuperVerbose("Returning false");
                 return false;
+            }
 
             BeatSaberModuleAttribute moduleData = attrs.First() as BeatSaberModuleAttribute;
 
@@ -175,8 +210,10 @@ namespace BeatSaberModManager.Manager
 
             if (pluginsLoaded == 0) {
                 Logger.log.Error($"No plugins could be loaded from {asm.GetName().Name} ({moduleData.Name}).");
+                Logger.log.SuperVerbose("Returning false");
                 return false;
             }
+            Logger.log.SuperVerbose("Returning true");
             return true;
         }
     }

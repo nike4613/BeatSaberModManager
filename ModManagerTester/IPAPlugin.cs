@@ -17,6 +17,11 @@ namespace ModManagerTester
             Console.WriteLine("This should never be visible");
         }
 
+        public IPAPlugin()
+        {
+            Console.WriteLine("This should never be visible");
+        }
+
         public void OnApplicationQuit()
         {
         }

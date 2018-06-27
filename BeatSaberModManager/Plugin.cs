@@ -29,33 +29,33 @@ namespace BeatSaberModManager
 
         public void OnApplicationQuit()
         {
-
+            PluginManager.OnApplicationQuit();
         }
 
         public void OnApplicationStart()
         {
-            Console.WriteLine(Name);
-            Console.WriteLine(Version);
+            Logger.log.Info($"{Name} version {Version}");
+            PluginManager.OnApplicationStart();
         }
 
         public void OnFixedUpdate()
         {
-
+            PluginManager.OnFixedUpdate();
         }
 
         public void OnLevelWasInitialized(int level)
         {
-
+            PluginManager.OnLevelWasInitialized(level);
         }
 
         public void OnLevelWasLoaded(int level)
         {
-
+            PluginManager.OnLevelWasLoaded(level);
         }
 
         public void OnUpdate()
         {
-
+            PluginManager.OnUpdate();
         }
     }
 }

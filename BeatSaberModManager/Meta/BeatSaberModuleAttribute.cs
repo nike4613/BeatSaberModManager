@@ -5,6 +5,7 @@ using System.Text;
 
 namespace BeatSaberModManager.Meta
 {
+    [Obsolete("Due to changes in .NET 4.6, this can no longer be used.")]
     [AttributeUsage(AttributeTargets.Assembly, Inherited = false)]
     public class BeatSaberModuleAttribute : Attribute
     {

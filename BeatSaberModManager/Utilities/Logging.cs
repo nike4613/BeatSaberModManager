@@ -42,7 +42,7 @@ namespace BeatSaberModManager.Utilities.Logging
             get
             {
                 if (_log == null)
-                    _log = CreateLogger(Assembly.GetCallingAssembly().GetName().Name);
+                    _log = CreateLogger(ManagerPlugin.GetName());
                 return _log;
             }
         }
@@ -144,7 +144,7 @@ namespace BeatSaberModManager.Utilities.Logging
             Console.ForegroundColor = color;
             foreach (var line in message.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
                 Console.WriteLine($"[{logName}][{level.ToString()}] {line}");
-            Console.ForegroundColor = ConsoleColor.Gray; // reset to "default"
+            //Console.ForegroundColor = ConsoleColor.Gray; // reset to "default"
         }
     }
 

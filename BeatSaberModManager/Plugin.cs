@@ -21,7 +21,7 @@ namespace BeatSaberModManager
 
         static ManagerPlugin()
         {
-            Logger.Filter = Logger.LogLevel.ReallyNotReccomendedAll;
+            Logger.Filter = Logger.LogLevel.All;
 
             Harmony = HarmonyInstance.Create("com.cirr.beatsaber.modmanager");
             PluginManager.IPAInject();

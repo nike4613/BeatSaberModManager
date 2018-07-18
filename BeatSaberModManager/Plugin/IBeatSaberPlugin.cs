@@ -1,10 +1,13 @@
 ﻿using BeatSaberModManager.Utilities.Logging;
+using System;
 
 namespace BeatSaberModManager.Plugin
 {
     public interface IBeatSaberPlugin
     {
         void Init(LoggerBase logger);
+
+        Version Version { get; }
 
         void OnApplicationQuit();
 

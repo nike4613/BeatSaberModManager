@@ -161,6 +161,11 @@ namespace BeatSaberModManager.Utilities.Logging
                 output = file.CreateText();
             else
                 output = file.AppendText();
+
+            string ds = DateTime.Now.ToString();
+            output.WriteLine($"--------------------------------{new string('-', ds.Length)}----");
+            output.WriteLine($"    BEAT SABER SESSION STARTING {ds}");
+            output.WriteLine($"--------------------------------{new string('-', ds.Length)}----");
         }
 
         public Logger.LogLevel Filter { get; set; }

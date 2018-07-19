@@ -116,32 +116,92 @@ namespace BeatSaberModManager.Manager
             Logger.log.Debug(dashstr);
 
             foreach (var plugin in plugins)
-                plugin.Item2.OnApplicationStart();
+            {
+                try
+                {
+                    plugin.Item2.OnApplicationStart();
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnApplicationStart of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnApplicationQuit()
         {
             foreach (var plugin in plugins)
-                plugin.Item2.OnApplicationQuit();
+            {
+                try
+                {
+                    plugin.Item2.OnApplicationQuit();
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnApplicationQuit of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnFixedUpdate()
         {
             foreach (var plugin in plugins)
-                plugin.Item2.OnFixedUpdate();
+            {
+                try
+                {
+                    plugin.Item2.OnFixedUpdate();
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnFixedUpdate of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnUpdate()
         {
             foreach (var plugin in plugins)
-                plugin.Item2.OnUpdate();
+            {
+                try
+                {
+                    plugin.Item2.OnUpdate();
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnUpdate of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnLevelWasInitialized(int index)
         {
             foreach (var plugin in plugins)
-                plugin.Item2.OnLevelWasInitialized(index);
+            {
+                try
+                {
+                    plugin.Item2.OnLevelWasInitialized(index);
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnLevelWasInitialized of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnLevelWasLoaded(int index)
         {
             foreach (var plugin in plugins)
-                plugin.Item2.OnLevelWasLoaded(index);
+            {
+                try
+                {
+                    plugin.Item2.OnLevelWasLoaded(index);
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnLevelWasLoaded of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
 
         private static bool LoadAssembly(Type[] types)

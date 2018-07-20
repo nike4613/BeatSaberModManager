@@ -79,6 +79,7 @@
     <Compile Include="Utilities\Extensions.cs" />
     <Compile Include="Utilities\Logging.cs" />
     <Compile Include="Utilities\MetaUtils.cs" />
+    <Compile Include="Utilities\SimpleJSON.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ILMerge.props" />

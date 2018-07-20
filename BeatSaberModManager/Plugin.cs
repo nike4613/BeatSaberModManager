@@ -15,13 +15,13 @@ namespace BeatSaberModManager
         public static string GetName() => Assembly.GetCallingAssembly().GetName().Name;
         public string Name => GetName();
 
-        public string Version => Assembly.GetCallingAssembly().GetName().Version.ToString();
+        public string Version => Assembly.GetExecutingAssembly().GetName().Version.ToString();
         
         public static HarmonyInstance Harmony;
 
         static ManagerPlugin()
         {
-            Logger.Filter = Logger.LogLevel.ReallyNotReccomendedAll;
+            Logger.Filter = Logger.LogLevel.All;
 
             Harmony = HarmonyInstance.Create("com.cirr.beatsaber.modmanager");
             PluginManager.IPAInject();

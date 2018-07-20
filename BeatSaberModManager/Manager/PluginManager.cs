@@ -32,49 +32,34 @@ namespace BeatSaberModManager.Manager
             MethodInfo loadFromInfo = typeof(Assembly).GetMethod("LoadFrom", BindingFlags.Static | BindingFlags.Public, null, new Type[] { typeof(string) }, new ParameterModifier[] { });
             MethodInfo getTypesInfo = typeof(Assembly).GetMethod("GetTypes", BindingFlags.Instance | BindingFlags.Public, null, new Type[] { }, new ParameterModifier[] { });
             MethodInfo internalLoad = 
-                typeof(PluginManager).GetMethod("LoadAssembly", BindingFlags.NonPublic | BindingFlags.Static, null, new Type[] { typeof(Assembly), typeof(Type[]) }, new ParameterModifier[] { });
+                typeof(PluginManager).GetMethod("LoadAssembly", BindingFlags.NonPublic | BindingFlags.Static, null, new Type[] { typeof(Type[]) }, new ParameterModifier[] { });
 
             var toInject = new List<CodeInstruction>
             {
-                new CodeInstruction(OpCodes.Ldloc_3),
-                new CodeInstruction(OpCodes.Ldloc_S, 4),
+                new CodeInstruction(OpCodes.Ldloc_1),
                 new CodeInstruction(OpCodes.Call, internalLoad),
             };
 
             var codes = new List<CodeInstruction>(instructions);
-
-            bool foundLoadFrom = false, foundGetTypes = false;
-            int loadFromLoc = -1, getTypesLoc = -1;
+            
             int injectLoc = -1, returnLoc = -1;
 
             for(int i = 0; i < codes.Count; i++)
             {
                 var code = codes[i];
 
-                if (!foundLoadFrom)
-                { // searching for first
-                    if (code.opcode == OpCodes.Call && code.operand.Equals(loadFromInfo))
-                    { // out first opcode
-                        //Console.WriteLine($"Found call to Assembly.LoadFrom at {i}");
-                        foundLoadFrom = true;
-                        loadFromLoc = i;
-                    }
-                }
-                else if (!foundGetTypes)
-                { // searching for second
+                if (code.opcode == OpCodes.Call && code.operand.Equals(loadFromInfo))
+                { // first call
+                    code = codes[++i];
                     if (code.opcode == OpCodes.Callvirt && code.operand.Equals(getTypesInfo))
-                    { // out first opcode
-                        //Console.WriteLine($"Found call to assembly.GetTypes at {i}");
-                        foundGetTypes = true;
-                        getTypesLoc = i;
+                    { // second call
+                        code = codes[++i];
+                        if (code.opcode == OpCodes.Stloc_1)
+                        { // store return value
+                            // heres where we want to inject
+                            injectLoc = ++i;
+                        }
                     }
-                }
-                else if (injectLoc == -1)
-                { // found our target
-                  // code injection starts at getTypesLoc + 2
-                    //Console.WriteLine($"Found code injection location at {getTypesLoc + 2}");
-                    injectLoc = i = getTypesLoc + 2;
-                    //Console.WriteLine($"{i} {getTypesLoc + 2} {loadFromLoc}");
                 }
                 else
                 {
@@ -84,7 +69,6 @@ namespace BeatSaberModManager.Manager
                         i += 2;
                         if (codes[i].opcode == OpCodes.Ldloc_2 && codes[++i].opcode == OpCodes.Ret)
                         {
-                            //Console.WriteLine($"Found return at {start}");
                             returnLoc = start;
                         }
                     }
@@ -93,7 +77,7 @@ namespace BeatSaberModManager.Manager
 
             toInject.Add(new CodeInstruction(OpCodes.Brtrue, returnLoc + toInject.Count));
 
-            //Console.WriteLine($"{loadFromLoc} {getTypesLoc} {injectLoc} {returnLoc + toInject.Count}");
+            //Console.WriteLine($"{injectLoc} {returnLoc + toInject.Count}");
 
             codes.InsertRange(injectLoc, toInject);
 
@@ -104,66 +88,129 @@ namespace BeatSaberModManager.Manager
             Logger.log.Debug("Beat Saber shutting down...");
         }
 
-        private static List<IBeatSaberPlugin> plugins = new List<IBeatSaberPlugin>();
+        private static List<Tuple<string, IBeatSaberPlugin, BeatSaberPluginAttribute>> plugins = new List<Tuple<string, IBeatSaberPlugin, BeatSaberPluginAttribute>>();
 
         public static void OnApplicationStart()
         {
+            int longlen = 0;
+            var foundstr = $"Found {plugins.Count} mods";
+            longlen = foundstr.Length;
+
+            IEnumerable<string> namestrings = plugins.Select(plugin => $"{plugin.Item1} {plugin.Item2.Version}");
+            int longname = namestrings.Select(s => s.Length).Max();
+            longlen = longlen < longname ? longname : longlen;
+            string dashstr = new string('-', longlen);
+
+            string center(string s)
+            {
+                int spaces = longname - s.Length;
+                int padLeft = spaces / 2 + s.Length;
+                return s.PadLeft(padLeft);
+            }
+
+            Logger.log.Debug(dashstr);
+            Logger.log.Debug(center(foundstr));
+            Logger.log.Debug(dashstr);
+            foreach (var name in namestrings)
+                Logger.log.Debug(center(name));
+            Logger.log.Debug(dashstr);
+
             foreach (var plugin in plugins)
-                plugin.OnApplicationStart();
+            {
+                try
+                {
+                    plugin.Item2.OnApplicationStart();
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnApplicationStart of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnApplicationQuit()
         {
             foreach (var plugin in plugins)
-                plugin.OnApplicationQuit();
+            {
+                try
+                {
+                    plugin.Item2.OnApplicationQuit();
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnApplicationQuit of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnFixedUpdate()
         {
             foreach (var plugin in plugins)
-                plugin.OnFixedUpdate();
+            {
+                try
+                {
+                    plugin.Item2.OnFixedUpdate();
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnFixedUpdate of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnUpdate()
         {
             foreach (var plugin in plugins)
-                plugin.OnUpdate();
+            {
+                try
+                {
+                    plugin.Item2.OnUpdate();
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnUpdate of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnLevelWasInitialized(int index)
         {
             foreach (var plugin in plugins)
-                plugin.OnLevelWasInitialized(index);
+            {
+                try
+                {
+                    plugin.Item2.OnLevelWasInitialized(index);
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnLevelWasInitialized of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
         public static void OnLevelWasLoaded(int index)
         {
             foreach (var plugin in plugins)
-                plugin.OnLevelWasLoaded(index);
+            {
+                try
+                {
+                    plugin.Item2.OnLevelWasLoaded(index);
+                }
+                catch (Exception e)
+                {
+                    Logger.log.Error($"Error during OnLevelWasLoaded of plugin {plugin.Item1}");
+                    Logger.log.Error(e);
+                }
+            }
         }
 
-        private static bool LoadAssembly(Assembly asm, Type[] types)
+        private static bool LoadAssembly(Type[] types)
         {
-            Logger.log.SuperVerbose($"Checking module {asm.GetName().FullName}");
-            object[] attrs = new object[] { };
-            try
-            {
-                attrs = asm.GetCustomAttributes(typeof(BeatSaberModuleAttribute), false);
-            }
-            catch (TypeLoadException)
-            {
-                Logger.log.Warn($"Woah there buddy! Something is wrong with {asm.GetName().Name}! I can't read it's attributes!");
+            var asm = types.First().Assembly;
 
-                Logger.log.SuperVerbose("Returning false");
-                return false;
-            }
+            Logger.log.SuperVerbose($"Checking for plugins in {asm.GetName().Name}");
 
-            if (attrs.Length == 0)
-            {
-                Logger.log.SuperVerbose("Returning false");
-                return false;
-            }
-
-            BeatSaberModuleAttribute moduleData = attrs.First() as BeatSaberModuleAttribute;
-
-            Logger.log.Info($"Loading plugins from {moduleData.Name}");
-
-            List<Type> modTypes = new List<Type>();
+            List<Tuple<Type, BeatSaberPluginAttribute>> modTypes = new List<Tuple<Type, BeatSaberPluginAttribute>>();
 
             foreach (var type in types)
             {
@@ -174,46 +221,53 @@ namespace BeatSaberModManager.Manager
                     if (type.GetInterfaces().Contains(typeof(IBeatSaberPlugin)))
                     { // also actually a plugin! great!
                         Logger.log.SuperVerbose($"Found plugin {type.FullName}");
-                        modTypes.Add(type);
+                        modTypes.Add(new Tuple<Type, BeatSaberPluginAttribute>(type, type.GetCustomAttribute<BeatSaberPluginAttribute>()));
                     }
                 }
             }
 
-            string commonPrefix = modTypes.Select(t => t.FullName).FindCommonPrefix();
+            if (modTypes.Count == 0)
+            {
+                //Logger.log.Warn($"Assembly {asm.GetName().Name} has the BeatSaberModule attribute, but defines no mods!");
+                return false;
+            }
+
+            string commonPrefix = modTypes.Select(t => t.Item1.FullName).FindCommonPrefix();
 
             int pluginsLoaded = 0;
 
             foreach (var type in modTypes)
             {
-                string pluginFullName = $"{moduleData.Name}/{type.FullName.Replace(commonPrefix, "")}";
+                string pluginFullName = $"{asm.GetName().Name}/{type.Item1.FullName.Replace(commonPrefix, "")}";
+
+                string finalName = modTypes.Count == 1 ? asm.GetName().Name : pluginFullName;
+                finalName = type.Item2.Name ?? finalName;
 
                 try
                 {
-                    Logger.log.SuperVerbose($"Instantiating {type.FullName}");
-                    IBeatSaberPlugin plugin = Activator.CreateInstance(type) as IBeatSaberPlugin;
+                    Logger.log.SuperVerbose($"Instantiating {finalName} ({type.Item1.FullName})");
+                    IBeatSaberPlugin plugin = Activator.CreateInstance(type.Item1) as IBeatSaberPlugin;
 
-                    LoggerBase logger = Logger.CreateLogger(modTypes.Count == 1 ? moduleData.Name : pluginFullName);
-                    Logger.log.SuperVerbose($"Initializing {type.FullName}");
+                    LoggerBase logger = Logger.CreateLogger(finalName);
+                    Logger.log.SuperVerbose($"Initializing {finalName}");
                     plugin.Init(logger);
 
-                    plugins.Add(plugin);
+                    plugins.Add(new Tuple<string, IBeatSaberPlugin, BeatSaberPluginAttribute>(finalName, plugin, type.Item2));
                     pluginsLoaded++;
                 }
                 catch (Exception e)
                 {
-                    Logger.log.Error($"Cannot initialize plugin {pluginFullName}");
+                    Logger.log.Error($"Cannot initialize plugin {finalName}");
                     Logger.log.Debug(e);
                 }
             }
 
-            Logger.log.SuperVerbose($"Plugins loaded from {moduleData.Name}: {pluginsLoaded}");
+            Logger.log.SuperVerbose($"Plugins loaded from {asm.GetName().Name}: {pluginsLoaded}");
 
             if (pluginsLoaded == 0) {
-                Logger.log.Error($"No plugins could be loaded from {asm.GetName().Name} ({moduleData.Name}).");
-                Logger.log.SuperVerbose("Returning false");
+                Logger.log.Error($"No plugins could be loaded from {asm.GetName().Name}.");
                 return false;
             }
-            Logger.log.SuperVerbose("Returning true");
             return true;
         }
     }

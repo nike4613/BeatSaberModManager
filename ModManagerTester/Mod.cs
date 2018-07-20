@@ -1,4 +1,5 @@
-﻿using BeatSaberModManager.Meta;
+﻿using System;
+using BeatSaberModManager.Meta;
 using BeatSaberModManager.Plugin;
 using BeatSaberModManager.Utilities.Logging;
 
@@ -8,6 +9,8 @@ namespace ModManagerTester
     class BrownCowPlugin : IBeatSaberPlugin
     {
         public static LoggerBase log;
+
+        public Version Version => new Version(0,0,1,0);
 
         public void Init(LoggerBase logger)
         {

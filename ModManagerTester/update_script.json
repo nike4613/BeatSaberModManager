@@ -4,7 +4,7 @@
     "newName": "ModManagerTester"
   },
   "ModManagerTester": {
-    "version": "0.0.1.1",
+    "version": "0.0.1.2",
     "download": "file://Z:/Users/aaron/Documents/Visual%20Studio%202017/Projects/BeatSaberModManager/ModManagerTester/bin/Debug/ModManagerTester.dll"
   }
 }

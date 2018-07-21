@@ -10,7 +10,7 @@ namespace ModManagerTester
     {
         public static LoggerBase log;
 
-        public Version Version => new Version(0,0,1,0);
+        public Version Version => new Version(0,0,1,2);
 
         public void Init(LoggerBase logger)
         {

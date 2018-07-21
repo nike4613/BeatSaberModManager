@@ -3,6 +3,7 @@ using SimpleJSON;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -39,6 +40,8 @@ namespace BeatSaberModManager.Updater
         {
             public PluginManager.PluginObject Plugin;
             public Uri DownloadUri;
+            public string Name;
+            public Version NewVersion;
         }
 
         private Dictionary<Uri, UpdateScript> cachedRequests = new Dictionary<Uri, UpdateScript>();
@@ -65,8 +68,6 @@ namespace BeatSaberModManager.Updater
 
                             yield return request.SendWebRequest();
 
-                            Logger.log.SuperVerbose("Resource gotten");
-
                             if (request.isNetworkError)
                             {
                                 Logger.log.Error("Network error while trying to update plugins");
@@ -78,6 +79,8 @@ namespace BeatSaberModManager.Updater
                                 Logger.log.Error($"Server returned an error code while trying to update plugin {plugin.Name}");
                                 Logger.log.Error(request.error);
                             }
+
+                            Logger.log.SuperVerbose("Resource gotten");
 
                             var json = request.downloadHandler.text;
                             JSONObject obj;
@@ -129,7 +132,9 @@ namespace BeatSaberModManager.Updater
                                 toUpdate.Add(new UpdateQueueItem
                                 {
                                     Plugin = plugin.Plugin,
-                                    DownloadUri = info.Download
+                                    DownloadUri = info.Download,
+                                    Name = plugin.Name,
+                                    NewVersion = info.Version
                                 });
                             }
                         }
@@ -144,7 +149,54 @@ namespace BeatSaberModManager.Updater
 
             Logger.log.Info($"{toUpdate.Count} plugins need updating");
 
-            //TODO: download updated file
+            if (toUpdate.Count == 0) yield break;
+
+            string tempDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + Path.GetRandomFileName());
+            Directory.CreateDirectory(tempDirectory);
+            Logger.log.SuperVerbose($"Created temp download dirtectory {tempDirectory}");
+            foreach (var item in toUpdate)
+            {
+                Logger.log.SuperVerbose($"Starting coroutine to download {item.Name}");
+                StartCoroutine(DownloadPluginCoroutine(tempDirectory, item));
+            }
+        }
+
+        IEnumerator DownloadPluginCoroutine(string tempdir, UpdateQueueItem item)
+        {
+            var file = Path.Combine(tempdir, item.Name + ".dll");
+
+            using (var req = UnityWebRequest.Get(item.DownloadUri))
+            {
+                req.downloadHandler = new DownloadHandlerFile(file);
+                yield return req.SendWebRequest();
+
+                if (req.isNetworkError)
+                {
+                    Logger.log.Error($"Network error while trying to download update for {item.Plugin.Name}");
+                    Logger.log.Error(req.error);
+                    yield break;
+                }
+                if (req.isHttpError)
+                {
+                    Logger.log.Error($"Server returned an error code while trying to download update for {item.Plugin.Name}");
+                    Logger.log.Error(req.error);
+                    yield break;
+                }
+
+                Logger.log.SuperVerbose("Finished download of new file");
+            }
+
+            var pluginDir = Path.GetDirectoryName(item.Plugin.FileName);
+            var newFile = Path.Combine(pluginDir, item.Name + ".dll");
+
+            Logger.log.SuperVerbose($"Moving downloaded file to {newFile}");
+
+            File.Delete(item.Plugin.FileName);
+            if (File.Exists(newFile))
+                File.Delete(newFile);
+            File.Move(file, newFile);
+
+            Logger.log.Info($"{item.Plugin.Name} updated to {item.NewVersion}");
         }
 
         /** // JSON format

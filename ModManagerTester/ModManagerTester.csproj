@@ -63,6 +63,9 @@
       <Name>BeatSaberModManager</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="update_script.json" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>copy "$(TargetPath)" "Z:\Game Library\Steam\steamapps\common\Beat Saber\Plugins\ModManagerTester.dll"

@@ -8,14 +8,17 @@ namespace BeatSaberModManager.Meta
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
     public class BeatSaberPluginAttribute : Attribute
     {
-        private readonly static string NoUpdateUriUri = "http://www.cirr.com/this-isnt-a-real-update-site";
-
         public string Name { get; private set; }
         public Uri UpdateUri { get; private set; }
 
-        public BeatSaberPluginAttribute(string name = null, string updateUri = null)
+        public BeatSaberPluginAttribute(string name)
         {
-            UpdateUri = new Uri(updateUri ?? NoUpdateUriUri);
+            UpdateUri = null; // updateUri == null ? new Uri(updateUri) : null;
+            Name = name;
+        }
+        public BeatSaberPluginAttribute(string name, string updateUri)
+        {
+            UpdateUri = updateUri != null ? new Uri(updateUri) : null;
             Name = name;
         }
     }

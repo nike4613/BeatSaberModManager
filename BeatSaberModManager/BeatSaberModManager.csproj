@@ -68,6 +68,10 @@
       <HintPath>..\..\..\..\..\..\..\Game Library\Steam\steamapps\common\Beat Saber\Beat Saber_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>..\..\..\..\..\..\..\Game Library\Steam\steamapps\common\Beat Saber\Beat Saber_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Manager\PluginManager.cs" />
@@ -76,6 +80,7 @@
     <Compile Include="Plugin.cs" />
     <Compile Include="Plugin\IBeatSaberPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Updater\ModUpdater.cs" />
     <Compile Include="Utilities\Extensions.cs" />
     <Compile Include="Utilities\Logging.cs" />
     <Compile Include="Utilities\MetaUtils.cs" />

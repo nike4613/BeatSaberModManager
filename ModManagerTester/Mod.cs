@@ -5,7 +5,7 @@ using BeatSaberModManager.Utilities.Logging;
 
 namespace ModManagerTester
 {
-    [BeatSaberPlugin]
+    [BeatSaberPlugin("BrownCowPlugin", "file://Z:/Users/aaron/Documents/Visual%20Studio%202017/Projects/BeatSaberModManager/ModManagerTester/update_script.json")]
     class BrownCowPlugin : IBeatSaberPlugin
     {
         public static LoggerBase log;

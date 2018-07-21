@@ -1,19 +1,44 @@
 ﻿using BeatSaberModManager.Meta;
 using BeatSaberModManager.Plugin;
+using BeatSaberModManager.Updater;
 using BeatSaberModManager.Utilities;
 using BeatSaberModManager.Utilities.Logging;
 using Harmony;
+using Harmony.ILCopying;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
+using UnityEngine;
+using Logger = BeatSaberModManager.Utilities.Logging.Logger;
 
 namespace BeatSaberModManager.Manager
 {
     public static class PluginManager
     {
+        public static string AsString(this CodeInstruction t)
+        {
+            List<string> list = new List<string>();
+            foreach (Label label in t.labels)
+            {
+                list.Add("Label" + label.GetHashCode());
+            }
+            foreach (ExceptionBlock block in t.blocks)
+            {
+                list.Add("EX_" + block.blockType.ToString().Replace("Block", ""));
+            }
+            string arg = (list.Count > 0) ? (" [" + string.Join(", ", list.ToArray()) + "]") : "";
+            string text = Emitter.FormatArgument(t.operand);
+            if (text != "")
+            {
+                text = " " + text;
+            }
+            return t.opcode + text + arg;
+        }
+
         public static void IPAInject()
         { // yes, we are injecting ourselves into IPA at runtime
             var harmony = ManagerPlugin.Harmony;
@@ -27,22 +52,29 @@ namespace BeatSaberModManager.Manager
             harmony.Patch(onApplicationQuit, null, new HarmonyMethod(onApplicationQuitPost));
         }
 
-        private static IEnumerable<CodeInstruction> IPA_LoadPlugins_Transpiler(IEnumerable<CodeInstruction> instructions)
+        private static IEnumerable<CodeInstruction> IPA_LoadPlugins_Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
         {
+            MethodInfo readAllBytes = typeof(File).GetMethod("ReadAllBytes", BindingFlags.Static | BindingFlags.Public, null, new Type[] { typeof(string) }, new ParameterModifier[] { });
+            MethodInfo loadBytes = typeof(Assembly).GetMethod("Load", BindingFlags.Static | BindingFlags.Public, null, new Type[] { typeof(byte[]) }, new ParameterModifier[] { });
             MethodInfo loadFromInfo = typeof(Assembly).GetMethod("LoadFrom", BindingFlags.Static | BindingFlags.Public, null, new Type[] { typeof(string) }, new ParameterModifier[] { });
             MethodInfo getTypesInfo = typeof(Assembly).GetMethod("GetTypes", BindingFlags.Instance | BindingFlags.Public, null, new Type[] { }, new ParameterModifier[] { });
             MethodInfo internalLoad = 
-                typeof(PluginManager).GetMethod("LoadAssembly", BindingFlags.NonPublic | BindingFlags.Static, null, new Type[] { typeof(Type[]) }, new ParameterModifier[] { });
+                typeof(PluginManager).GetMethod("LoadAssembly", BindingFlags.NonPublic | BindingFlags.Static, null, new Type[] { typeof(Type[]), typeof(string) }, new ParameterModifier[] { });
+
+            var branchLabel = generator.DefineLabel();
 
             var toInject = new List<CodeInstruction>
             {
                 new CodeInstruction(OpCodes.Ldloc_1),
+                new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Call, internalLoad),
+                new CodeInstruction(OpCodes.Brtrue, branchLabel)
             };
 
             var codes = new List<CodeInstruction>(instructions);
-            
-            int injectLoc = -1, returnLoc = -1;
+
+            int mainInjectLoc = -1;
+            bool setLabel = false;
 
             for(int i = 0; i < codes.Count; i++)
             {
@@ -50,36 +82,37 @@ namespace BeatSaberModManager.Manager
 
                 if (code.opcode == OpCodes.Call && code.operand.Equals(loadFromInfo))
                 { // first call
+                    var firstCall = code;
+                    var inject = i;
                     code = codes[++i];
                     if (code.opcode == OpCodes.Callvirt && code.operand.Equals(getTypesInfo))
                     { // second call
                         code = codes[++i];
                         if (code.opcode == OpCodes.Stloc_1)
                         { // store return value
+                            // inject code to not hold handle to file
+                            codes.Insert(inject, new CodeInstruction(OpCodes.Call, readAllBytes));
+                            firstCall.operand = loadBytes;
+                            i++;
+
                             // heres where we want to inject
-                            injectLoc = ++i;
+                            mainInjectLoc = ++i;
                         }
                     }
                 }
                 else
                 {
-                    var start = i;
-                    if (code.opcode == OpCodes.Ldloc_0 && codes[++i].opcode == OpCodes.Stloc_2)
-                    { // found the cast
-                        i += 2;
-                        if (codes[i].opcode == OpCodes.Ldloc_2 && codes[++i].opcode == OpCodes.Ret)
-                        {
-                            returnLoc = start;
-                        }
+                    if (code.opcode == OpCodes.Ldloc_0 && codes[++i].opcode == OpCodes.Ret && !setLabel)
+                    {
+                        code.labels.Add(branchLabel);
+                        setLabel = true;
                     }
                 }
             }
 
-            toInject.Add(new CodeInstruction(OpCodes.Brtrue, returnLoc + toInject.Count));
+            codes.InsertRange(mainInjectLoc, toInject);
 
-            //Console.WriteLine($"{injectLoc} {returnLoc + toInject.Count}");
-
-            codes.InsertRange(injectLoc, toInject);
+            // Logger.log.Debug(string.Join("\n", codes.Select(c => c.AsString())));
 
             return codes.AsEnumerable();
         }
@@ -88,7 +121,16 @@ namespace BeatSaberModManager.Manager
             Logger.log.Debug("Beat Saber shutting down...");
         }
 
-        private static List<Tuple<string, IBeatSaberPlugin, BeatSaberPluginAttribute>> plugins = new List<Tuple<string, IBeatSaberPlugin, BeatSaberPluginAttribute>>();
+        public class PluginObject
+        {
+            public string FileName { get; internal set; }
+            public string Name { get; internal set; }
+            public IBeatSaberPlugin Plugin { get; internal set; }
+            public BeatSaberPluginAttribute Meta { get; internal set; }
+        }
+
+        private static List<PluginObject> plugins = new List<PluginObject>();
+        public static List<PluginObject> Plugins => plugins;
 
         public static void OnApplicationStart()
         {
@@ -96,8 +138,10 @@ namespace BeatSaberModManager.Manager
             var foundstr = $"Found {plugins.Count} mods";
             longlen = foundstr.Length;
 
-            IEnumerable<string> namestrings = plugins.Select(plugin => $"{plugin.Item1} {plugin.Item2.Version}");
-            int longname = namestrings.Select(s => s.Length).Max();
+            IEnumerable<string> namestrings = plugins.Select(plugin => $"{plugin.Name} {plugin.Plugin.Version}");
+            int longname = 0;
+            if (namestrings.Count() > 0)
+                longname = namestrings.Select(s => s.Length).Max();
             longlen = longlen < longname ? longname : longlen;
             string dashstr = new string('-', longlen);
 
@@ -119,29 +163,35 @@ namespace BeatSaberModManager.Manager
             {
                 try
                 {
-                    plugin.Item2.OnApplicationStart();
+                    plugin.Plugin.OnApplicationStart();
                 }
                 catch (Exception e)
                 {
-                    Logger.log.Error($"Error during OnApplicationStart of plugin {plugin.Item1}");
+                    Logger.log.Error($"Error during OnApplicationStart of plugin {plugin.Name}");
                     Logger.log.Error(e);
                 }
             }
+
+            new GameObject("Mod Updater").AddComponent<ModUpdater>();
         }
+
+        internal static event Action OnPluginsUnloaded;
         public static void OnApplicationQuit()
         {
             foreach (var plugin in plugins)
             {
                 try
                 {
-                    plugin.Item2.OnApplicationQuit();
+                    plugin.Plugin.OnApplicationQuit();
                 }
                 catch (Exception e)
                 {
-                    Logger.log.Error($"Error during OnApplicationQuit of plugin {plugin.Item1}");
+                    Logger.log.Error($"Error during OnApplicationQuit of plugin {plugin.Name}");
                     Logger.log.Error(e);
                 }
             }
+
+            OnPluginsUnloaded();
         }
         public static void OnFixedUpdate()
         {
@@ -149,11 +199,11 @@ namespace BeatSaberModManager.Manager
             {
                 try
                 {
-                    plugin.Item2.OnFixedUpdate();
+                    plugin.Plugin.OnFixedUpdate();
                 }
                 catch (Exception e)
                 {
-                    Logger.log.Error($"Error during OnFixedUpdate of plugin {plugin.Item1}");
+                    Logger.log.Error($"Error during OnFixedUpdate of plugin {plugin.Name}");
                     Logger.log.Error(e);
                 }
             }
@@ -164,11 +214,11 @@ namespace BeatSaberModManager.Manager
             {
                 try
                 {
-                    plugin.Item2.OnUpdate();
+                    plugin.Plugin.OnUpdate();
                 }
                 catch (Exception e)
                 {
-                    Logger.log.Error($"Error during OnUpdate of plugin {plugin.Item1}");
+                    Logger.log.Error($"Error during OnUpdate of plugin {plugin.Name}");
                     Logger.log.Error(e);
                 }
             }
@@ -179,11 +229,11 @@ namespace BeatSaberModManager.Manager
             {
                 try
                 {
-                    plugin.Item2.OnLevelWasInitialized(index);
+                    plugin.Plugin.OnLevelWasInitialized(index);
                 }
                 catch (Exception e)
                 {
-                    Logger.log.Error($"Error during OnLevelWasInitialized of plugin {plugin.Item1}");
+                    Logger.log.Error($"Error during OnLevelWasInitialized of plugin {plugin.Name}");
                     Logger.log.Error(e);
                 }
             }
@@ -194,17 +244,17 @@ namespace BeatSaberModManager.Manager
             {
                 try
                 {
-                    plugin.Item2.OnLevelWasLoaded(index);
+                    plugin.Plugin.OnLevelWasLoaded(index);
                 }
                 catch (Exception e)
                 {
-                    Logger.log.Error($"Error during OnLevelWasLoaded of plugin {plugin.Item1}");
+                    Logger.log.Error($"Error during OnLevelWasLoaded of plugin {plugin.Name}");
                     Logger.log.Error(e);
                 }
             }
         }
 
-        private static bool LoadAssembly(Type[] types)
+        private static bool LoadAssembly(Type[] types, string filename)
         {
             var asm = types.First().Assembly;
 
@@ -252,7 +302,13 @@ namespace BeatSaberModManager.Manager
                     Logger.log.SuperVerbose($"Initializing {finalName}");
                     plugin.Init(logger);
 
-                    plugins.Add(new Tuple<string, IBeatSaberPlugin, BeatSaberPluginAttribute>(finalName, plugin, type.Item2));
+                    plugins.Add(new PluginObject
+                    {
+                        FileName = filename,
+                        Name = finalName,
+                        Plugin = plugin,
+                        Meta = type.Item2
+                    });
                     pluginsLoaded++;
                 }
                 catch (Exception e)

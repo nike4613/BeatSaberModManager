@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -44,6 +45,7 @@ namespace BeatSaberModManager.Updater
             public Version NewVersion;
         }
 
+        private Regex commentRegex = new Regex(@"(?: \/\/.+)?$", RegexOptions.Compiled | RegexOptions.Multiline);
         private Dictionary<Uri, UpdateScript> cachedRequests = new Dictionary<Uri, UpdateScript>();
         IEnumerator CheckForUpdatesCoroutine()
         {
@@ -52,7 +54,7 @@ namespace BeatSaberModManager.Updater
             var toUpdate = new List<UpdateQueueItem>();
             var plugins = new Queue<UpdateCheckQueueItem>(PluginManager.Plugins.Select(p => new UpdateCheckQueueItem { Plugin = p, UpdateUri = p.Meta.UpdateUri, Name = p.Meta.Name }));
 
-            for (; plugins.Count > 0; )
+            for (; plugins.Count > 0 ;)
             {
                 var plugin = plugins.Dequeue();
 
@@ -83,7 +85,10 @@ namespace BeatSaberModManager.Updater
                             Logger.log.SuperVerbose("Resource gotten");
 
                             var json = request.downloadHandler.text;
-                            JSONObject obj;
+
+                            json = commentRegex.Replace(json, "");
+
+                            JSONObject obj = null;
                             try
                             {
                                 obj = JSON.Parse(json).AsObject;
@@ -92,6 +97,12 @@ namespace BeatSaberModManager.Updater
                             {
                                 Logger.log.Error($"Parse error while trying to update plugin {plugin.Name}");
                                 Logger.log.Error($"Response doesn't seem to be a JSON object");
+                                continue;
+                            }
+                            catch (Exception e)
+                            {
+                                Logger.log.Error($"Parse error while trying to update pluging {plugin.Name}");
+                                Logger.log.Error(e);
                                 continue;
                             }
 

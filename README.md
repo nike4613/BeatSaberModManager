@@ -17,7 +17,7 @@ An update script is a JSON file containing a single object of the following form
     "download": "<url>",             // required, defines URL to use for downloading new version
                                      // note: only required if neither newName nor newScript is specified
   },
-  ...								 //  more entries
+  ...                                //  more entries
 }
 ```
 You specify a URL pointing to one of the files in the annotation like:

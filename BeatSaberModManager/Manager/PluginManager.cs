@@ -19,108 +19,6 @@ namespace BeatSaberModManager.Manager
 {
     public static class PluginManager
     {
-        public static string AsString(this CodeInstruction t)
-        {
-            List<string> list = new List<string>();
-            foreach (Label label in t.labels)
-            {
-                list.Add("Label" + label.GetHashCode());
-            }
-            foreach (ExceptionBlock block in t.blocks)
-            {
-                list.Add("EX_" + block.blockType.ToString().Replace("Block", ""));
-            }
-            string arg = (list.Count > 0) ? (" [" + string.Join(", ", list.ToArray()) + "]") : "";
-            string text = Emitter.FormatArgument(t.operand);
-            if (text != "")
-            {
-                text = " " + text;
-            }
-            return t.opcode + text + arg;
-        }
-
-        public static void IPAInject()
-        { // yes, we are injecting ourselves into IPA at runtime
-            var harmony = ManagerPlugin.Harmony;
-
-            var loadPluginsFromFile = typeof(IllusionInjector.PluginManager).GetMethod("LoadPluginsFromFile", BindingFlags.NonPublic | BindingFlags.Static);
-            var onApplicationQuit = typeof(IllusionInjector.PluginComponent).GetMethod("OnApplicationQuit", BindingFlags.NonPublic | BindingFlags.Instance);
-            var loadPluginsFromFileTranspiler = typeof(PluginManager).GetMethod("IPA_LoadPlugins_Transpiler", BindingFlags.NonPublic | BindingFlags.Static);
-            var onApplicationQuitPost = typeof(PluginManager).GetMethod("IPA_PluginComponent_OnApplicationQuit_Post", BindingFlags.NonPublic | BindingFlags.Static);
-
-            harmony.Patch(loadPluginsFromFile, null, null, new HarmonyMethod(loadPluginsFromFileTranspiler));
-            harmony.Patch(onApplicationQuit, null, new HarmonyMethod(onApplicationQuitPost));
-        }
-
-        private static IEnumerable<CodeInstruction> IPA_LoadPlugins_Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
-        {
-            MethodInfo readAllBytes = typeof(File).GetMethod("ReadAllBytes", BindingFlags.Static | BindingFlags.Public, null, new Type[] { typeof(string) }, new ParameterModifier[] { });
-            MethodInfo loadBytes = typeof(Assembly).GetMethod("Load", BindingFlags.Static | BindingFlags.Public, null, new Type[] { typeof(byte[]) }, new ParameterModifier[] { });
-            MethodInfo loadFromInfo = typeof(Assembly).GetMethod("LoadFrom", BindingFlags.Static | BindingFlags.Public, null, new Type[] { typeof(string) }, new ParameterModifier[] { });
-            MethodInfo getTypesInfo = typeof(Assembly).GetMethod("GetTypes", BindingFlags.Instance | BindingFlags.Public, null, new Type[] { }, new ParameterModifier[] { });
-            MethodInfo internalLoad = 
-                typeof(PluginManager).GetMethod("LoadAssembly", BindingFlags.NonPublic | BindingFlags.Static, null, new Type[] { typeof(Type[]), typeof(string) }, new ParameterModifier[] { });
-
-            var branchLabel = generator.DefineLabel();
-
-            var toInject = new List<CodeInstruction>
-            {
-                new CodeInstruction(OpCodes.Ldloc_1),
-                new CodeInstruction(OpCodes.Ldarg_0),
-                new CodeInstruction(OpCodes.Call, internalLoad),
-                new CodeInstruction(OpCodes.Brtrue, branchLabel)
-            };
-
-            var codes = new List<CodeInstruction>(instructions);
-
-            int mainInjectLoc = -1;
-            bool setLabel = false;
-
-            for(int i = 0; i < codes.Count; i++)
-            {
-                var code = codes[i];
-
-                if (code.opcode == OpCodes.Call && code.operand.Equals(loadFromInfo))
-                { // first call
-                    var firstCall = code;
-                    var inject = i;
-                    code = codes[++i];
-                    if (code.opcode == OpCodes.Callvirt && code.operand.Equals(getTypesInfo))
-                    { // second call
-                        code = codes[++i];
-                        if (code.opcode == OpCodes.Stloc_1)
-                        { // store return value
-                            // inject code to not hold handle to file
-                            codes.Insert(inject, new CodeInstruction(OpCodes.Call, readAllBytes));
-                            firstCall.operand = loadBytes;
-                            i++;
-
-                            // heres where we want to inject
-                            mainInjectLoc = ++i;
-                        }
-                    }
-                }
-                else
-                {
-                    if (code.opcode == OpCodes.Ldloc_0 && codes[++i].opcode == OpCodes.Ret && !setLabel)
-                    {
-                        code.labels.Add(branchLabel);
-                        setLabel = true;
-                    }
-                }
-            }
-
-            codes.InsertRange(mainInjectLoc, toInject);
-
-            // Logger.log.Debug(string.Join("\n", codes.Select(c => c.AsString())));
-
-            return codes.AsEnumerable();
-        }
-        private static void IPA_PluginComponent_OnApplicationQuit_Post()
-        { // use this to update plugins
-            Logger.log.Debug("Beat Saber shutting down...");
-        }
-
         public class PluginObject
         {
             public string FileName { get; internal set; }
@@ -254,6 +152,27 @@ namespace BeatSaberModManager.Manager
             }
         }
 
+        private static readonly string tempDirName = ManagerPlugin.GetName() + "PluginCache";
+        private static string tempDir = null;
+        private static string MovePlugin(string plugin)
+        {
+            if (tempDir == null)
+            {
+                tempDir = Path.Combine(Path.GetTempPath(), tempDirName);
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+                Directory.CreateDirectory(tempDir);
+            }
+
+            string newPath = Path.Combine(tempDir, Path.GetFileName(plugin));
+            File.Copy(plugin, newPath);
+
+            Logger.log.SuperVerbose($"Copying {plugin} -> {newPath}");
+
+            return newPath;
+        }
         private static bool LoadAssembly(Type[] types, string filename)
         {
             var asm = types.First().Assembly;

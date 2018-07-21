@@ -2,7 +2,7 @@
 ## Updating
 In order to enable your plugin for auto-updating, you need 2 things: an "update script", and the BeatSaberPluginAttribute.updateUri argument.
 An update script is a JSON file containing a single object of the following format:
-```json
+```javascript
 {
   "_updateScript": "0.1",            // version
   "<pluginName>": {                  // an entry for your plugin, using its annotated name

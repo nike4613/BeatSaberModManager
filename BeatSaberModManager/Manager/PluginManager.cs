@@ -73,7 +73,6 @@ namespace BeatSaberModManager.Manager
             new GameObject("Mod Updater").AddComponent<ModUpdater>();
         }
 
-        internal static event Action OnPluginsUnloaded;
         public static void OnApplicationQuit()
         {
             foreach (var plugin in plugins)
@@ -88,8 +87,6 @@ namespace BeatSaberModManager.Manager
                     Logger.log.Error(e);
                 }
             }
-
-            OnPluginsUnloaded();
         }
         public static void OnFixedUpdate()
         {
@@ -151,7 +148,7 @@ namespace BeatSaberModManager.Manager
                 }
             }
         }
-
+        
         private static readonly string tempDirName = ManagerPlugin.GetName() + "PluginCache";
         private static string tempDir = null;
         private static string MovePlugin(string plugin)

@@ -3,8 +3,10 @@ using SimpleJSON;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -28,6 +30,7 @@ namespace BeatSaberModManager.Updater
         public void CheckForUpdates()
         {
             StartCoroutine(CheckForUpdatesCoroutine());
+            StartCoroutine(UpdateSelfCoroutine());
         }
 
         struct UpdateCheckQueueItem
@@ -171,7 +174,7 @@ namespace BeatSaberModManager.Updater
                 StartCoroutine(DownloadPluginCoroutine(tempDirectory, item));
             }
         }
-
+        
         IEnumerator DownloadPluginCoroutine(string tempdir, UpdateQueueItem item)
         {
             var file = Path.Combine(tempdir, item.Name + ".dll");
@@ -208,6 +211,161 @@ namespace BeatSaberModManager.Updater
             File.Move(file, newFile);
 
             Logger.log.Info($"{item.Plugin.Name} updated to {item.NewVersion}");
+        }
+
+        static readonly Uri ownUpdateUri = new Uri("file://Z:/Users/aaron/Documents/Visual%20Studio%202017/Projects/BeatSaberModManager/BeatSaberModManagerUpdater/update_script.json");
+        IEnumerator UpdateSelfCoroutine()
+        {
+            Logger.log.Info("Checking for mod manager updates...");
+
+            Uri newVersionUri = null;
+            var plugins = new Queue<UpdateCheckQueueItem>();
+            plugins.Enqueue(new UpdateCheckQueueItem { Plugin = null, UpdateUri = ownUpdateUri, Name = ManagerPlugin.GetName() });
+
+            for (; plugins.Count > 0;)
+            {
+                var plugin = plugins.Dequeue();
+
+                Logger.log.SuperVerbose($"Checking for {plugin.Name}");
+
+                if (plugin.UpdateUri != null)
+                {
+                    Logger.log.SuperVerbose($"Has update uri '{plugin.UpdateUri}'");
+                    if (!cachedRequests.ContainsKey(plugin.UpdateUri))
+                        using (var request = UnityWebRequest.Get(plugin.UpdateUri))
+                        {
+                            Logger.log.SuperVerbose("Getting resource");
+
+                            yield return request.SendWebRequest();
+
+                            if (request.isNetworkError)
+                            {
+                                Logger.log.Error("Network error while trying to update mods");
+                                Logger.log.Error(request.error);
+                                break;
+                            }
+                            if (request.isHttpError)
+                            {
+                                Logger.log.Error($"Server returned an error code while trying to update mod {plugin.Name}");
+                                Logger.log.Error(request.error);
+                            }
+
+                            Logger.log.SuperVerbose("Resource gotten");
+
+                            var json = request.downloadHandler.text;
+
+                            json = commentRegex.Replace(json, "");
+
+                            JSONObject obj = null;
+                            try
+                            {
+                                obj = JSON.Parse(json).AsObject;
+                            }
+                            catch (InvalidCastException)
+                            {
+                                Logger.log.Error($"Parse error while trying to update mod {plugin.Name}");
+                                Logger.log.Error($"Response doesn't seem to be a JSON object");
+                                continue;
+                            }
+                            catch (Exception e)
+                            {
+                                Logger.log.Error($"Parse error while trying to update mod {plugin.Name}");
+                                Logger.log.Error(e);
+                                continue;
+                            }
+
+                            UpdateScript ss;
+                            try
+                            {
+                                ss = UpdateScript.Parse(obj);
+                            }
+                            catch (Exception e)
+                            {
+                                Logger.log.Error($"Parse error while trying to update mod {plugin.Name}");
+                                Logger.log.Error($"Script at {plugin.UpdateUri} doesn't seem to be a valid update script");
+                                Logger.log.Debug(e);
+                                continue;
+                            }
+
+                            cachedRequests.Add(plugin.UpdateUri, ss);
+                        }
+
+                    var script = cachedRequests[plugin.UpdateUri];
+                    if (script.Info.TryGetValue(plugin.Name, out UpdateScript.PluginVersionInfo info))
+                    {
+                        Logger.log.SuperVerbose($"Checking version info for {plugin.Name}");
+                        if (info.NewName != null || info.NewScript != null)
+                            plugins.Enqueue(new UpdateCheckQueueItem
+                            {
+                                Plugin = plugin.Plugin,
+                                Name = info.NewName ?? plugin.Name,
+                                UpdateUri = info.NewScript ?? plugin.UpdateUri
+                            });
+                        else
+                        {
+                            Logger.log.SuperVerbose($"New version: {info.Version}, Current version: {ManagerPlugin.GetVersion()}");
+                            if (info.Version > ManagerPlugin.GetVersion())
+                            { // we should update plugin
+                                newVersionUri = info.Download;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Logger.log.Error($"Script defined for plugin {plugin.Name} doesn't define information for {plugin.Name}");
+                        continue;
+                    }
+                }
+            }
+
+            if (newVersionUri != null)
+            { // has new version
+                Logger.log.Info($"Updating {ManagerPlugin.GetName()} when BeatSaber closes");
+
+                var filepath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName(), $"{ManagerPlugin.GetName()}Updater.exe"); // download file path
+                if (!Directory.Exists(Path.GetDirectoryName(filepath)))
+                    Directory.CreateDirectory(Path.GetDirectoryName(filepath));
+
+                using (var req = UnityWebRequest.Get(newVersionUri))
+                {
+                    req.downloadHandler = new DownloadHandlerFile(filepath);
+                    yield return req.SendWebRequest();
+
+                    if (req.isNetworkError)
+                    {
+                        Logger.log.Error($"Network error while trying to download update for {ManagerPlugin.GetName()}");
+                        Logger.log.Error(req.error);
+                        yield break;
+                    }
+                    if (req.isHttpError)
+                    {
+                        Logger.log.Error($"Server returned an error code while trying to download update for {ManagerPlugin.GetName()}");
+                        Logger.log.Error(req.error);
+                        yield break;
+                    }
+
+                    Logger.log.SuperVerbose("Finished download of new file");
+                }
+
+                bool hasRun = false;
+                void atExit()
+                {
+                    if (hasRun) return;
+                    hasRun = true;
+                    Logger.log.Info($"Starting {ManagerPlugin.GetName()} Update");
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = filepath,
+                        Arguments = $"{Process.GetCurrentProcess().Id} \"{Assembly.GetExecutingAssembly().Location}\" noconfirm",
+                        UseShellExecute = false
+                    });
+                }
+
+                IPAPatches.OnAfterApplicationQuit += atExit;
+                AppDomain.CurrentDomain.ProcessExit += (o, e) => atExit();
+            }
+
+            yield break;
         }
 
         /** // JSON format

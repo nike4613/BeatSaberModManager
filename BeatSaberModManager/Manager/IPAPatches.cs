@@ -100,9 +100,12 @@ namespace BeatSaberModManager.Manager
 
             return codes.AsEnumerable();
         }
+
+        internal static event Action OnAfterApplicationQuit;
         private static void IPA_PluginComponent_OnApplicationQuit_Post()
         {
             Logger.log.Debug("Beat Saber shutting down...");
+            OnAfterApplicationQuit();
         }
     }
 }

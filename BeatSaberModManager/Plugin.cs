@@ -15,7 +15,7 @@ namespace BeatSaberModManager
         public static string GetName() => Assembly.GetCallingAssembly().GetName().Name;
         public string Name => GetName();
 
-        public static Version GetVersion() => Assembly.GetExecutingAssembly().GetName().Version;
+        public static Version GetVersion() => new Version(0,1,2,1); // hard code this so I don't need to change the assembly version
         public string Version => GetVersion().ToString();
         
         public static HarmonyInstance Harmony;

@@ -213,7 +213,7 @@ namespace BeatSaberModManager.Updater
             Logger.log.Info($"{item.Plugin.Name} updated to {item.NewVersion}");
         }
 
-        static readonly Uri ownUpdateUri = new Uri("file://Z:/Users/aaron/Documents/Visual%20Studio%202017/Projects/BeatSaberModManager/BeatSaberModManagerUpdater/update_script.json");
+        static readonly Uri ownUpdateUri = new Uri("https://nike4613.github.io/BeatSaberModManager/bsmm.json");
         IEnumerator UpdateSelfCoroutine()
         {
             Logger.log.Info("Checking for mod manager updates...");

@@ -68,8 +68,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy "$(TargetPath)" "Z:\Game Library\Steam\steamapps\common\Beat Saber\Plugins\ModManagerTester.dll"
-
-rem copy "$(TargetDir)0Harmony.dll" "Z:\Game Library\Steam\steamapps\common\Beat Saber\Beat Saber_Data\Managed\0Harmony.dll</PostBuildEvent>
+    <PostBuildEvent>copy "$(TargetPath)" "Z:\Game Library\Steam\steamapps\common\Beat Saber\Plugins\ModManagerTester.dll"</PostBuildEvent>
   </PropertyGroup>
 </Project>

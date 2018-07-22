@@ -90,13 +90,14 @@
   <ItemGroup>
     <None Include="ILMerge.props" />
     <None Include="packages.config" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="ILMergeOrder.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy "$(TargetPath)" "Z:\Game Library\Steam\steamapps\common\Beat Saber\Plugins\!BeatSaberPluginManager.dll"</PostBuildEvent>
+    <PostBuildEvent>copy "$(TargetPath)" "Z:\Game Library\Steam\steamapps\common\Beat Saber\Plugins\!BeatSaberModManager.dll"</PostBuildEvent>
   </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

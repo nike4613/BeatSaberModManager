@@ -24,11 +24,15 @@ namespace BeatSaberModManagerUpdater
             var newFile = Path.Combine(pluginDir, outputName);
             var parentPid = int.Parse(args[0]);
 
-            var parent = Process.GetProcessById(parentPid);
+            try
+            {
+                var parent = Process.GetProcessById(parentPid);
 
-            Console.WriteLine($"Waiting for parent ({parentPid}) process to die...");
+                Console.WriteLine($"Waiting for parent ({parentPid}) process to die...");
 
-            parent.WaitForExit();
+                parent.WaitForExit();
+            }
+            catch (Exception) { }
 
             Console.WriteLine($"Replacing {oldFile}");
 

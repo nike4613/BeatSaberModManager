@@ -22,9 +22,9 @@ namespace BeatSaberModManager
         static ManagerPlugin()
         {
 #if DEBUG
-            Logger.Filter = Logger.LogLevel.ReallyNotReccomendedAll;
-#else
             Logger.Filter = Logger.LogLevel.All;
+#else
+            Logger.Filter = Logger.LogLevel.All; // ??? 
 #endif
 
             Harmony = HarmonyInstance.Create("com.cirr.beatsaber.modmanager");

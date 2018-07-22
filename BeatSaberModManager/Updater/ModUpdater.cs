@@ -72,13 +72,13 @@ namespace BeatSaberModManager.Updater
 
                             if (request.isNetworkError)
                             {
-                                Logger.log.Error("Network error while trying to update plugins");
+                                Logger.log.Error("Network error while trying to update mods");
                                 Logger.log.Error(request.error);
                                 break;
                             }
                             if (request.isHttpError)
                             {
-                                Logger.log.Error($"Server returned an error code while trying to update plugin {plugin.Name}");
+                                Logger.log.Error($"Server returned an error code while trying to update mod {plugin.Name}");
                                 Logger.log.Error(request.error);
                             }
 
@@ -95,13 +95,13 @@ namespace BeatSaberModManager.Updater
                             }
                             catch (InvalidCastException)
                             {
-                                Logger.log.Error($"Parse error while trying to update plugin {plugin.Name}");
+                                Logger.log.Error($"Parse error while trying to update mod {plugin.Name}");
                                 Logger.log.Error($"Response doesn't seem to be a JSON object");
                                 continue;
                             }
                             catch (Exception e)
                             {
-                                Logger.log.Error($"Parse error while trying to update pluging {plugin.Name}");
+                                Logger.log.Error($"Parse error while trying to update mod {plugin.Name}");
                                 Logger.log.Error(e);
                                 continue;
                             }
@@ -113,7 +113,7 @@ namespace BeatSaberModManager.Updater
                             }
                             catch (Exception e)
                             {
-                                Logger.log.Error($"Parse error while trying to update plugin {plugin.Name}");
+                                Logger.log.Error($"Parse error while trying to update mod {plugin.Name}");
                                 Logger.log.Error($"Script at {plugin.UpdateUri} doesn't seem to be a valid update script");
                                 Logger.log.Debug(e);
                                 continue;
@@ -158,7 +158,7 @@ namespace BeatSaberModManager.Updater
                 }
             }
 
-            Logger.log.Info($"{toUpdate.Count} plugins need updating");
+            Logger.log.Info($"{toUpdate.Count} mods need updating");
 
             if (toUpdate.Count == 0) yield break;
 

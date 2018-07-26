@@ -105,7 +105,10 @@ namespace BeatSaberModManager.Manager
         private static void IPA_PluginComponent_OnApplicationQuit_Post()
         {
             Logger.log.Debug("Beat Saber shutting down...");
-            OnAfterApplicationQuit();
+            if (OnAfterApplicationQuit != null)
+            {
+                OnAfterApplicationQuit();
+            }
         }
     }
 }

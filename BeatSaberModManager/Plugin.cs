@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using UnityEngine;
+using Logger = BeatSaberModManager.Utilities.Logging.Logger;
 
 namespace BeatSaberModManager
 {
@@ -15,7 +17,7 @@ namespace BeatSaberModManager
         public static string GetName() => Assembly.GetCallingAssembly().GetName().Name;
         public string Name => GetName();
 
-        public static Version GetVersion() => new Version(0,1,2,1); // hard code this so I don't need to change the assembly version
+        public static Version GetVersion() => new Version(0,1,2,3); // hard code this so I don't need to change the assembly version
         public string Version => GetVersion().ToString();
         
         public static HarmonyInstance Harmony;
@@ -23,10 +25,16 @@ namespace BeatSaberModManager
         static ManagerPlugin()
         {
 #if DEBUG
-            Logger.Filter = Logger.LogLevel.All;
+            Logger.Filter = Logger.LogLevel.ReallyNotReccomendedAll;
 #else
             Logger.Filter = Logger.LogLevel.All; // ??? 
 #endif
+            Application.logMessageReceived += delegate (string condition, string stackTrace, LogType type)
+            {
+                var level = UnityLogInterceptor.LogTypeToLevel(type);
+                UnityLogInterceptor.Unitylogger.Log(level, $"{condition.Trim()}");
+                UnityLogInterceptor.Unitylogger.Log(level, $"{stackTrace.Trim()}");
+            };
 
             Harmony = HarmonyInstance.Create("com.cirr.beatsaber.modmanager");
             IPAPatches.IPAInject();

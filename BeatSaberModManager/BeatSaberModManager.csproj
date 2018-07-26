@@ -74,6 +74,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Manager\IPAPatches.cs" />
     <Compile Include="Manager\PluginManager.cs" />
     <Compile Include="Meta\BeatSaberPluginAttribute.cs" />

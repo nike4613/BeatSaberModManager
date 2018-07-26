@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using UnityEngine;
 
 namespace BeatSaberModManager.Utilities.Logging
 {
@@ -32,6 +33,30 @@ namespace BeatSaberModManager.Utilities.Logging
         public void Error(Exception e) => Log(Level.Error, e);
         public void Critical(string message) => Log(Level.Critical, message);
         public void Critical(Exception e) => Log(Level.Critical, e);
+    }
+
+    public class UnityLogInterceptor
+    {
+        public static LoggerBase Unitylogger = Logger.CreateLogger("UnityEngine");
+
+        public static LoggerBase.Level LogTypeToLevel(LogType type)
+        {
+            switch (type)
+            {
+                case LogType.Assert:
+                    return LoggerBase.Level.Debug;
+                case LogType.Error:
+                    return LoggerBase.Level.Error;
+                case LogType.Exception:
+                    return LoggerBase.Level.Error;
+                case LogType.Log:
+                    return LoggerBase.Level.Info;
+                case LogType.Warning:
+                    return LoggerBase.Level.Warning;
+                default:
+                    return LoggerBase.Level.SuperVerbose;
+            }
+        }
     }
 
     public class Logger : LoggerBase
@@ -142,7 +167,7 @@ namespace BeatSaberModManager.Utilities.Logging
         {
             if (((byte)level & (byte)Logger.Filter) == 0) return;
             Console.ForegroundColor = color;
-            foreach (var line in message.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (var line in message.Split(new string[] { "\n", Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
                 Console.WriteLine($"[{logName}][{level.ToString()}] {line}");
             //Console.ForegroundColor = ConsoleColor.Gray; // reset to "default"
         }
@@ -173,7 +198,7 @@ namespace BeatSaberModManager.Utilities.Logging
         public void Print(LoggerBase.Level level, string logName, string message)
         {
             var timestring = DateTime.Now.ToString();
-            foreach (var line in message.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (var line in message.Split(new string[] { "\n", Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
                 output.WriteLine($"[{timestring}][{logName}][{level.ToString()}] {line}");
             output.Flush();
         }
